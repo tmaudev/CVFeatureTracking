@@ -1,0 +1,2 @@
+g++ -ggdb `pkg-config --cflags --libs opencv3` FeatureTracker.cpp -o FeatureTracking &&
+./FeatureTracking
