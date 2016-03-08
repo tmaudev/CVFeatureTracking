@@ -8,7 +8,7 @@
 #include <iostream>
 
 #define MIN_FEATURES 30
-#define FAST_THRESHOLD 100
+#define FAST_THRESHOLD 50
 #define FEATURE_POINT_SIZE 3
 
 using namespace cv;
@@ -22,9 +22,12 @@ int main(int argc, char** argv )
    /* Video Frame Images */
    Mat frame, frame_gray, oldframe;
 
+   /* Matrix for Rigid Transform */
+   Mat rigid_transform;
+
    /* Feature Point Vectors */
    std::vector<KeyPoint> keypoints;
-   std::vector<Point2f> pts, tracked_pts, prev_pts;
+   std::vector<Point2f> pts, tracked_pts, prev_pts, saved_pts;
 
    /* Status and Error Flags for KLT Algorithm */
    std::vector<uchar> status;
@@ -94,6 +97,7 @@ int main(int argc, char** argv )
 
                /* Clear Tracked Points */
                tracked_pts.clear();
+               saved_pts.clear();
 
                /* Reset Sum Variables */
                sum_x = 0;
@@ -105,14 +109,21 @@ int main(int argc, char** argv )
                      tracked_pts.push_back(pts[i]);
 
                      /* Calculate Sum of Movement */
-                     sum_x += pts[i].x - prev_pts[i].x;
-                     sum_y += pts[i].y - prev_pts[i].y;
+                     //sum_x += pts[i].x - prev_pts[i].x;
+                     //sum_y += pts[i].y - prev_pts[i].y;
+
+                     saved_pts.push_back(prev_pts[i]);
                   }
                }
 
+               rigid_transform = estimateRigidTransform(saved_pts, tracked_pts, false);
+               //cout << rigid_transform.at<double>(0,2) << endl;
+
                /* Calculate Average Movement in X and Y Directions */
-               dist_x += sum_x / tracked_pts.size();
-               dist_y += sum_y / tracked_pts.size();
+               dist_x += rigid_transform.at<double>(0,2);
+               dist_y += rigid_transform.at<double>(1,2);
+               //dist_x += sum_x / tracked_pts.size();
+               //dist_y += sum_y / tracked_pts.size();
                printf("X: %8.3f        Y: %8.3f\n", dist_x, dist_y);
             }
          }
