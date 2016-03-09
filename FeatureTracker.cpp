@@ -10,6 +10,7 @@
 #define MIN_FEATURES 30
 #define FAST_THRESHOLD 50
 #define FEATURE_POINT_SIZE 3
+#define MAX_FRAMES 30
 
 using namespace cv;
 using namespace std;
@@ -37,6 +38,9 @@ int main(int argc, char** argv )
    float sum_x, sum_y, dist_x = 0, dist_y = 0;
    //int min_x, max_x, min_y, max_y;
 
+   /* Frame Counter */
+   int frame_count = 0;
+
    /* Open Camera Device */
    cam.open(0);
 
@@ -52,12 +56,13 @@ int main(int argc, char** argv )
    while (cam.isOpened()) {
       /* Obtain Frame from Camera */
       cam >> frame;
+      frame_count++;
 
       /* Convert Frame to Grayscale */
       cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
 
       /* Check for Minimum Number of Features */
-      if (tracked_pts.size() < MIN_FEATURES) {
+      if (tracked_pts.size() < MIN_FEATURES || frame_count == MAX_FRAMES) {
          /* Find New Features (FAST Algorithm) */
          FAST(frame_gray, keypoints, FAST_THRESHOLD, true);
          KeyPoint::convert(keypoints, pts);
@@ -107,11 +112,13 @@ int main(int argc, char** argv )
 
          if (saved_pts.size()) {
             rigid_transform = estimateRigidTransform(saved_pts, tracked_pts, false);
-            //cout << rigid_transform.at<double>(0,2) << endl;
 
-            /* Calculate Average Movement in X and Y Directions */
-            dist_x += rigid_transform.at<double>(0,2);
-            dist_y += rigid_transform.at<double>(1,2);
+            if (!rigid_transform.empty()) {
+               /* Calculate Average Movement in X and Y Directions */
+               dist_x += rigid_transform.at<double>(0,2);
+               dist_y += rigid_transform.at<double>(1,2);
+            }
+
             //dist_x += sum_x / tracked_pts.size();
             //dist_y += sum_y / tracked_pts.size();
             printf("X: %8.3f        Y: %8.3f\n", dist_x, dist_y);
