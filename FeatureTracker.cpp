@@ -33,9 +33,6 @@ int main(int argc, char** argv )
    std::vector<uchar> status;
    std::vector<float> err;
 
-   /* Number of Current Feature Points */
-   int num_pts = 0;
-
    /* Pixed Distance Calculation Variables */
    float sum_x, sum_y, dist_x = 0, dist_y = 0;
    //int min_x, max_x, min_y, max_y;
@@ -70,62 +67,54 @@ int main(int argc, char** argv )
          /* Keep Track of Feature Points */
          tracked_pts = pts;
 
-         /* Number of Feature Points */
-         num_pts = pts.size();
-         printf("FAST: Found %d Features\n", num_pts);
+         printf("FAST: Found %d Features\n", (int)pts.size());
       }
       else {
-         /* Check if First Frame */
-         if (!oldframe.empty()) {
+         /* Track Points (KLT Algorithm) */
+         calcOpticalFlowPyrLK(oldframe, frame_gray, tracked_pts, pts, status, err);
 
-            /* Check Minimum Number of Features */
-            if (num_pts >= MIN_FEATURES) {
+         /* Failed Point Tracking */
+         if (countNonZero(status) < status.size() * 0.8) {
+            printf("ERROR\n");
+            tracked_pts.clear();
+            oldframe.release();
+            continue;
+         }
 
-               /* Track Points (KLT Algorithm) */
-               calcOpticalFlowPyrLK(oldframe, frame_gray, tracked_pts, pts, status, err);
+         /* Save Old Points */
+         prev_pts = tracked_pts;
 
-               /* Failed Point Tracking */
-               if (countNonZero(status) < status.size() * 0.8) {
-                  printf("ERROR\n");
-                  tracked_pts.clear();
-                  oldframe.release();
-                  continue;
-               }
+         /* Clear Tracked Points */
+         tracked_pts.clear();
+         saved_pts.clear();
 
-               /* Save Old Points */
-               prev_pts = tracked_pts;
+         /* Reset Sum Variables */
+         //sum_x = 0;
+         //sum_y = 0;
 
-               /* Clear Tracked Points */
-               tracked_pts.clear();
-               saved_pts.clear();
+         /* Rebuild Tracked Points Without Failed Points */
+         for (int i = 0; i < status.size(); i++) {
+            if(status[i]) {
+               tracked_pts.push_back(pts[i]);
 
-               /* Reset Sum Variables */
-               sum_x = 0;
-               sum_y = 0;
+               /* Calculate Sum of Movement */
+               //sum_x += pts[i].x - prev_pts[i].x;
+               //sum_y += pts[i].y - prev_pts[i].y;
 
-               /* Rebuild Tracked Points Without Failed Points */
-               for (int i = 0; i < status.size(); i++) {
-                  if(status[i]) {
-                     tracked_pts.push_back(pts[i]);
-
-                     /* Calculate Sum of Movement */
-                     //sum_x += pts[i].x - prev_pts[i].x;
-                     //sum_y += pts[i].y - prev_pts[i].y;
-
-                     saved_pts.push_back(prev_pts[i]);
-                  }
-               }
-
-               rigid_transform = estimateRigidTransform(saved_pts, tracked_pts, false);
-               //cout << rigid_transform.at<double>(0,2) << endl;
-
-               /* Calculate Average Movement in X and Y Directions */
-               dist_x += rigid_transform.at<double>(0,2);
-               dist_y += rigid_transform.at<double>(1,2);
-               //dist_x += sum_x / tracked_pts.size();
-               //dist_y += sum_y / tracked_pts.size();
-               printf("X: %8.3f        Y: %8.3f\n", dist_x, dist_y);
+               saved_pts.push_back(prev_pts[i]);
             }
+         }
+
+         if (saved_pts.size()) {
+            rigid_transform = estimateRigidTransform(saved_pts, tracked_pts, false);
+            //cout << rigid_transform.at<double>(0,2) << endl;
+
+            /* Calculate Average Movement in X and Y Directions */
+            dist_x += rigid_transform.at<double>(0,2);
+            dist_y += rigid_transform.at<double>(1,2);
+            //dist_x += sum_x / tracked_pts.size();
+            //dist_y += sum_y / tracked_pts.size();
+            printf("X: %8.3f        Y: %8.3f\n", dist_x, dist_y);
          }
       }
 
